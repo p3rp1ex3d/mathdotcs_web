@@ -1,6 +1,6 @@
 <script>
 	import './layout.css';
-	import favicon from '$lib/assets/favicon.svg';
+	import favicon from '$lib/assets/image.png';
 	import { theme } from '$lib/stores/themeStore.js';
 	import { onMount } from 'svelte';
 
