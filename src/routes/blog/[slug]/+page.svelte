@@ -2,42 +2,31 @@
 	import Navbar from '../../../components/Navbar.svelte';
 	import Footer from '../../../components/Footer.svelte';
 	import TerminalDocument from '../../../components/TerminalDocument.svelte';
-	import { onMount, tick, afterUpdate } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	export let data;
-	const { post, relatedArticles } = data;
+	const { post } = data;
 
 	let renderedHtml = '';
 	let contentDiv;
 
-	$: renderedHtml = post ? parseMarkdown(post.content) : '';
-
-	/* ---------------- MARKDOWN PARSER ---------------- */
 	function parseMarkdown(markdown) {
 		let html = markdown;
 
-		// Escape HTML
 		html = html
 			.replace(/&/g, '&amp;')
 			.replace(/</g, '&lt;')
 			.replace(/>/g, '&gt;');
 
-		// Headers
 		html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
 		html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
 		html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
 
-		// Bold / italic
 		html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 		html = html.replace(/(?<!\*)\*([^\*]+)\*(?!\*)/g, '<em>$1</em>');
 
-		// Inline code
 		html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-		// Links
-		html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
-
-		// Lists
 		const lines = html.split('\n');
 		let inList = false;
 		html = lines.map(line => {
@@ -57,34 +46,22 @@
 		}).join('\n');
 		if (inList) html += '</ul>';
 
-		// Paragraphs (CRITICAL FIX)
 		html = html.split('\n\n').map(para => {
 			const trimmed = para.trim();
-
-			// 🚨 Don't wrap math blocks
-			if (/^\$\$[\s\S]*\$\$$/.test(trimmed)) {
-				return trimmed;
-			}
-
+			if (/^\$\$[\s\S]*\$\$$/.test(trimmed)) return trimmed;
 			if (!trimmed) return '';
-
-			if (trimmed.startsWith('<')) {
-				return trimmed;
-			}
-
+			if (trimmed.startsWith('<')) return trimmed;
 			return '<p>' + trimmed.replace(/\n/g, '<br>') + '</p>';
 		}).join('\n');
 
 		return html;
 	}
 
-	/* ---------------- MATH RENDER ---------------- */
 	function renderMath() {
 		if (!contentDiv || !window.katex) return;
 
 		let html = contentDiv.innerHTML;
 
-		// 🔥 Display math
 		html = html.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
 			try {
 				return `<div class="katex-display">${
@@ -98,7 +75,6 @@
 			}
 		});
 
-		// 🔥 Inline math (ignore $$)
 		html = html.replace(/(?<!\$)\$([^\$]+)\$(?!\$)/g, (_, math) => {
 			try {
 				return `<span class="katex-inline">${
@@ -114,35 +90,30 @@
 		contentDiv.innerHTML = html;
 	}
 
-	/* ---------------- INIT ---------------- */
 	onMount(async () => {
-		// Load KaTeX if not already loaded
+		renderedHtml = parseMarkdown(post.content);
+
 		if (!window.katex) {
-			// Load KaTeX CSS
 			const link = document.createElement('link');
 			link.rel = 'stylesheet';
 			link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.css';
 			document.head.appendChild(link);
 
-			// Load KaTeX JS
 			const script = document.createElement('script');
 			script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.0/dist/katex.min.js';
 			document.head.appendChild(script);
 			await new Promise(resolve => script.onload = resolve);
 		}
-	});
 
-	afterUpdate(() => {
-		if (contentDiv && window.katex && renderedHtml.includes('$')) {
-			renderMath();
-		}
+		await tick();
+		renderMath();
 	});
 </script>
 
 <Navbar />
 
 <div class="bg-[#0a0a0f] text-white pt-20 pb-12">
-	<TerminalDocument key={post.slug} title={post.title}>
+	<TerminalDocument title={post.title}>
 		<article>
 			<header class="mb-0 space-y-6 border-b border-gray-600 pb-8">
 				<div class="space-y-3">
@@ -165,27 +136,6 @@
 			<div class="prose prose-invert max-w-none mb-16 markdown-content" bind:this={contentDiv}>
 				{@html renderedHtml}
 			</div>
-
-			<!-- {#if relatedArticles && relatedArticles.length > 0}
-				<section class="space-y-6 border-t border-gray-600 pt-12">
-					<h2 class="text-3xl font-bold text-amber-50">Related Articles</h2>
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-						{#each relatedArticles as related}
-							<a
-								href="/blog/{related.slug}"
-								class="group bg-[#1e1e2e] border border-gray-600 rounded-lg p-6 hover:border-blue-400 hover:shadow-lg hover:shadow-blue-400/10 transition-all duration-300"
-							>
-								<h3 class="text-lg font-bold text-amber-50 group-hover:text-blue-300 transition mb-2">
-									{related.title}
-								</h3>
-								<p class="text-sm text-gray-400 group-hover:text-gray-300 transition">
-									Continue reading →
-								</p>
-							</a>
-						{/each}
-					</div>
-				</section>
-			{/if} -->
 		</article>
 	</TerminalDocument>
 </div>
